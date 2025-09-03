@@ -19,20 +19,35 @@ export class ContentService {
         return await this.vectorDB.storeContent(url, mockContent.title, mockContent.content, [])
       }
 
+      // Check if OpenAI is actually available before trying to use it
+      if (!import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY === '') {
+        console.log('OpenAI API key not available, switching to mock services...')
+        this.useMockServices = true
+        
+        const mockContent = await MockLLMService.extractContentFromUrl(url)
+        return await this.vectorDB.storeContent(url, mockContent.title, mockContent.content, [])
+      }
+
       // Use real OpenAI services
       console.log('Attempting to use real services with vector database...')
       
-      // Extract content from URL using OpenAI service
-      const { title, content } = await OpenAIService.extractContentFromUrl(url)
-      
-      // Generate embedding for the content
-      const embedding = await OpenAIService.generateEmbedding(content)
-      
-      // Store content in vector database with automatic chunking
-      const contentData = await this.vectorDB.storeContent(url, title, content, embedding)
-      
-      console.log('Successfully stored content in vector database with chunking')
-      return contentData
+      try {
+        // Extract content from URL using OpenAI service
+        const { title, content } = await OpenAIService.extractContentFromUrl(url)
+        
+        // Generate embedding for the content
+        const embedding = await OpenAIService.generateEmbedding(content)
+        
+        // Store content in vector database with automatic chunking
+        const contentData = await this.vectorDB.storeContent(url, title, content, embedding)
+        
+        console.log('Successfully stored content in vector database with chunking')
+        return contentData
+        
+      } catch (openaiError) {
+        console.error('OpenAI service failed:', openaiError)
+        throw openaiError // Re-throw to trigger fallback
+      }
       
     } catch (error) {
       console.error('Error ingesting URL with real services:', error)
@@ -81,6 +96,9 @@ export class ContentService {
   static async queryContent(question: string): Promise<QueryResult> {
     try {
       console.log('Processing query with vector database...')
+      
+      // Debug: Show database contents
+      await this.vectorDB.debugDatabaseContents()
       
       // Use vector database query processing
       const result = await this.vectorDB.queryContent(question)
@@ -163,6 +181,21 @@ export class ContentService {
     return this.vectorDB.getStatus()
   }
 
+  // Check vector database health
+  static async checkVectorDBHealth() {
+    return await this.vectorDB.checkHealth()
+  }
+
+  // Debug vector database contents
+  static async debugVectorDB() {
+    return await this.vectorDB.debugDatabaseContents()
+  }
+
+  // Reset vector database if needed
+  static async resetVectorDB() {
+    return await this.vectorDB.resetDatabase()
+  }
+
   // Get chunk information for a specific content item
   static async getContentChunks(contentId: string) {
     try {
@@ -179,5 +212,22 @@ export class ContentService {
   static async getDatabaseStats() {
     return this.vectorDB.getStats()
   }
+}
+
+// Add utility methods to window for easy testing in browser console
+if (typeof window !== 'undefined') {
+  (window as any).ContentService = ContentService;
+  (window as any).checkVectorDB = async () => await ContentService.checkVectorDBHealth();
+  (window as any).debugVectorDB = async () => await ContentService.debugVectorDB();
+  (window as any).resetVectorDB = async () => await ContentService.resetVectorDB();
+  (window as any).getVectorDBStatus = () => ContentService.getVectorDBStatus();
+  (window as any).getContentStats = async () => await ContentService.getDatabaseStats();
+  
+  console.log('🔧 Vector Database utilities loaded. Available commands:');
+  console.log('  - checkVectorDB() - Check database health');
+  console.log('  - debugVectorDB() - Show database contents');
+  console.log('  - resetVectorDB() - Reset database if needed');
+  console.log('  - getVectorDBStatus() - Get database status');
+  console.log('  - getContentStats() - Get content statistics');
 }
 

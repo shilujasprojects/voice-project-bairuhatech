@@ -159,7 +159,7 @@ export class MockLLMService {
     } else if (urlLower.includes('ai') || urlLower.includes('intelligence') || hostname.includes('ai')) {
       return {
         title: 'Artificial Intelligence & Machine Learning',
-        content: `Artificial Intelligence encompasses machine learning, neural networks, deep learning, and cognitive computing. This resource covers AI fundamentals, algorithms, neural network architectures, and practical applications. It includes tutorials on implementing AI models, understanding different learning paradigms, and applying AI solutions to real-world problems. The content explains the latest developments in AI research and industry applications.`
+        content: `Artificial Intelligence (AI) is a branch of computer science that aims to create intelligent machines capable of performing tasks that typically require human intelligence. AI encompasses machine learning, neural networks, deep learning, natural language processing, and computer vision. Machine learning is a subset of AI that enables computers to learn and improve from experience without being explicitly programmed. Neural networks are computational models inspired by biological neural networks in the human brain. Deep learning uses multiple layers of neural networks to analyze various factors of data. AI applications include virtual assistants, autonomous vehicles, medical diagnosis, financial analysis, and creative content generation. The field continues to evolve with breakthroughs in large language models, reinforcement learning, and explainable AI.`
       }
     } else if (urlLower.includes('web') || urlLower.includes('frontend') || hostname.includes('web')) {
       return {

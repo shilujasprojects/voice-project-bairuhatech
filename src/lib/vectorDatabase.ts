@@ -76,48 +76,83 @@ export class VectorDatabase {
 
   private initializeDatabase(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
-
-      request.onerror = () => {
-        console.error('Failed to open database:', request.error);
-        reject(request.error);
-      };
-
-      request.onsuccess = () => {
-        this.db = request.result;
-        console.log('Vector database initialized successfully');
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-
-        // Create object stores
-        if (!db.objectStoreNames.contains('content')) {
-          const contentStore = db.createObjectStore('content', { keyPath: 'id' });
-          contentStore.createIndex('url', 'url', { unique: true });
-          contentStore.createIndex('created_at', 'created_at', { unique: false });
+      try {
+        // Check if IndexedDB is supported
+        if (!window.indexedDB) {
+          reject(new Error('IndexedDB is not supported in this browser'));
+          return;
         }
 
-        if (!db.objectStoreNames.contains('chunks')) {
-          const chunksStore = db.createObjectStore('chunks', { keyPath: 'id' });
-          chunksStore.createIndex('contentId', 'contentId', { unique: false });
-          chunksStore.createIndex('url', 'url', { unique: false });
-          chunksStore.createIndex('embedding', 'embedding', { unique: false });
-        }
+        const request = indexedDB.open(this.dbName, this.version);
 
-        if (!db.objectStoreNames.contains('queries')) {
-          const queriesStore = db.createObjectStore('queries', { keyPath: 'id' });
-          queriesStore.createIndex('timestamp', 'timestamp', { unique: false });
-        }
+        request.onerror = () => {
+          console.error('Failed to open database:', request.error);
+          reject(new Error(`Failed to open database: ${request.error?.message || 'Unknown error'}`));
+        };
 
-        if (!db.objectStoreNames.contains('embeddings')) {
-          const embeddingsStore = db.createObjectStore('embeddings', { keyPath: 'id' });
-          embeddingsStore.createIndex('contentId', 'contentId', { unique: false });
-        }
+        request.onsuccess = () => {
+          try {
+            this.db = request.result;
+            
+            // Add error handling for the database connection
+            this.db.onerror = (event) => {
+              console.error('Database error:', event);
+            };
+            
+            this.db.onversionchange = () => {
+              console.warn('Database version changed, closing connection');
+              this.db?.close();
+              this.db = null;
+            };
+            
+            console.log('Vector database initialized successfully');
+            resolve();
+          } catch (error) {
+            reject(new Error(`Error setting up database: ${error}`));
+          }
+        };
 
-        console.log('Database schema created/updated');
-      };
+        request.onupgradeneeded = (event) => {
+          try {
+            const db = (event.target as IDBOpenDBRequest).result;
+
+            // Create object stores
+            if (!db.objectStoreNames.contains('content')) {
+              const contentStore = db.createObjectStore('content', { keyPath: 'id' });
+              contentStore.createIndex('url', 'url', { unique: true });
+              contentStore.createIndex('created_at', 'created_at', { unique: false });
+            }
+
+            if (!db.objectStoreNames.contains('chunks')) {
+              const chunksStore = db.createObjectStore('chunks', { keyPath: 'id' });
+              chunksStore.createIndex('contentId', 'contentId', { unique: false });
+              chunksStore.createIndex('url', 'url', { unique: false });
+              chunksStore.createIndex('embedding', 'embedding', { unique: false });
+            }
+
+            if (!db.objectStoreNames.contains('queries')) {
+              const queriesStore = db.createObjectStore('queries', { keyPath: 'id' });
+              queriesStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+
+            if (!db.objectStoreNames.contains('embeddings')) {
+              const embeddingsStore = db.createObjectStore('embeddings', { keyPath: 'id' });
+              embeddingsStore.createIndex('contentId', 'contentId', { unique: false });
+            }
+
+            console.log('Database schema created/updated');
+          } catch (error) {
+            reject(new Error(`Error creating database schema: ${error}`));
+          }
+        };
+
+        request.onblocked = () => {
+          console.warn('Database blocked - another tab might have it open');
+        };
+
+      } catch (error) {
+        reject(new Error(`Error initializing database: ${error}`));
+      }
     });
   }
 
@@ -304,42 +339,34 @@ export class VectorDatabase {
   // Hybrid search: combines vector similarity with text relevance
   async searchContent(query: string, limit: number = 5): Promise<(ContentChunk & { relevance: number })[]> {
     try {
-      // Get vector similarity results
-      const vectorResults = await this.searchSimilar(query, limit * 2);
-      
-      // Get text-based results
+      // Get text-based results first (more reliable)
       const textResults = await this.textSearch(query, limit * 2);
       
-      // Combine and rank results
-      const combinedResults = new Map<string, { chunk: ContentChunk; relevance: number }>();
-      
-      // Add vector results with high weight
-      for (const chunk of vectorResults) {
-        const similarity = this.cosineSimilarity(
-          this.generateMockEmbedding(query),
-          chunk.embedding
-        );
-        combinedResults.set(chunk.id, { chunk, relevance: similarity * 0.7 });
+      // If we have good text results, use them directly
+      if (textResults.length > 0) {
+        console.log(`🔍 Using text search results: ${textResults.length} chunks found`);
+        return textResults.slice(0, limit);
       }
       
-      // Add text results with adjusted weight
-      for (const result of textResults) {
-        const existing = combinedResults.get(result.chunk.id);
-        if (existing) {
-          existing.relevance += result.relevance * 0.3;
-        } else {
-          combinedResults.set(result.chunk.id, { chunk: result.chunk, relevance: result.relevance * 0.3 });
-        }
-      }
+      // Fallback to vector similarity if no text results
+      console.log(`🔍 Falling back to vector similarity search`);
+      const vectorResults = await this.searchSimilar(query, limit);
       
-      // Sort by combined relevance and return top results
-      return Array.from(combinedResults.values())
-        .sort((a, b) => b.relevance - a.relevance)
-        .slice(0, limit);
+      // Convert vector results to expected format
+      return vectorResults.map(chunk => ({
+        ...chunk,
+        relevance: 0.5 // Default relevance for vector results
+      }));
         
     } catch (error) {
       console.error('Error in hybrid search:', error);
-      return [];
+      // Fallback to simple text search
+      try {
+        return await this.textSearch(query, limit);
+      } catch (fallbackError) {
+        console.error('Fallback search also failed:', fallbackError);
+        return [];
+      }
     }
   }
 
@@ -349,6 +376,8 @@ export class VectorDatabase {
       const db = await this.ensureDatabase();
       const chunks = await this.getAllFromStore(db, 'chunks');
       
+      console.log(`🔍 Text search: Found ${chunks.length} chunks in database`);
+      
       const queryLower = query.toLowerCase();
       const queryWords = queryLower.split(' ').filter(word => word.length > 2);
       const results: (ContentChunk & { relevance: number })[] = [];
@@ -356,29 +385,57 @@ export class VectorDatabase {
       for (const chunk of chunks) {
         let relevance = 0;
         
-        // Title relevance
+        // Title relevance (exact match gets highest score)
         if (chunk.title.toLowerCase().includes(queryLower)) {
-          relevance += 0.8;
+          relevance += 1.0;
+          console.log(`✅ Title match: "${chunk.title}" contains "${queryLower}"`);
         }
         
-        // Content relevance
+        // Content relevance (exact match gets high score)
         const contentLower = chunk.content.toLowerCase();
         if (contentLower.includes(queryLower)) {
-          relevance += 0.6;
+          relevance += 0.8;
+          console.log(`✅ Content match: Content contains "${queryLower}"`);
         }
         
-        // Word matching
-        for (const word of queryWords) {
-          if (contentLower.includes(word)) {
-            relevance += 0.2;
+        // Partial phrase matching (for multi-word queries)
+        const queryPhrases = this.generateQueryPhrases(queryLower);
+        for (const phrase of queryPhrases) {
+          if (contentLower.includes(phrase)) {
+            relevance += 0.6;
+            console.log(`✅ Phrase match: Content contains "${phrase}"`);
           }
         }
         
+        // Individual word matching with synonyms
+        for (const word of queryWords) {
+          if (contentLower.includes(word)) {
+            relevance += 0.3;
+            console.log(`✅ Word match: Content contains "${word}"`);
+          }
+          // Check for synonyms and related terms
+          const synonyms = this.getSynonyms(word);
+          for (const synonym of synonyms) {
+            if (contentLower.includes(synonym)) {
+              relevance += 0.2;
+              console.log(`✅ Synonym match: Content contains "${synonym}" (synonym of "${word}")`);
+            }
+          }
+        }
+        
+        // Semantic relevance for AI/ML terms
+        if (this.hasSemanticRelevance(queryLower, chunk.content.toLowerCase())) {
+          relevance += 0.4;
+          console.log(`✅ Semantic relevance: AI/ML terms detected`);
+        }
+        
         if (relevance > 0) {
+          console.log(`📊 Chunk relevance score: ${relevance.toFixed(2)}`);
           results.push({ ...chunk, relevance });
         }
       }
       
+      console.log(`📊 Text search results: ${results.length} chunks with relevance > 0`);
       return results
         .sort((a, b) => b.relevance - a.relevance)
         .slice(0, limit);
@@ -389,13 +446,72 @@ export class VectorDatabase {
     }
   }
 
+  // Generate query phrases for better matching
+  private generateQueryPhrases(query: string): string[] {
+    const words = query.split(' ').filter(word => word.length > 2);
+    const phrases: string[] = [];
+    
+    // Add original query
+    phrases.push(query);
+    
+    // Add word combinations
+    for (let i = 0; i < words.length - 1; i++) {
+      phrases.push(words.slice(i, i + 2).join(' '));
+    }
+    
+    return phrases;
+  }
+
+  // Get synonyms for common terms
+  private getSynonyms(word: string): string[] {
+    const synonymMap: { [key: string]: string[] } = {
+      'ai': ['artificial intelligence', 'machine learning', 'intelligence', 'smart'],
+      'intelligence': ['ai', 'artificial', 'smart', 'cognitive', 'brain'],
+      'artificial': ['ai', 'intelligence', 'synthetic', 'man-made'],
+      'machine': ['computer', 'automated', 'system', 'algorithm'],
+      'learning': ['training', 'education', 'knowledge', 'understanding'],
+      'neural': ['brain', 'network', 'cognitive', 'intelligence'],
+      'network': ['system', 'connection', 'web', 'structure'],
+      'algorithm': ['method', 'procedure', 'process', 'technique'],
+      'data': ['information', 'facts', 'details', 'content'],
+      'model': ['system', 'framework', 'structure', 'approach']
+    };
+    
+    return synonymMap[word] || [];
+  }
+
+  // Check semantic relevance for AI/ML terms
+  private hasSemanticRelevance(query: string, content: string): boolean {
+    const aiTerms = ['ai', 'artificial intelligence', 'machine learning', 'neural', 'algorithm', 'data science'];
+    const queryLower = query.toLowerCase();
+    
+    // Check if query contains AI-related terms
+    const hasAITerms = aiTerms.some(term => queryLower.includes(term));
+    
+    if (hasAITerms) {
+      // Check if content is AI-related
+      const aiContentTerms = ['artificial intelligence', 'machine learning', 'neural network', 'algorithm', 'data', 'intelligence', 'learning'];
+      return aiContentTerms.some(term => content.includes(term));
+    }
+    
+    return false;
+  }
+
   // Query content with AI-powered answers
   async queryContent(question: string): Promise<QueryResult> {
     try {
+      console.log(`🔍 Searching for: "${question}"`);
+      
       // Search for relevant chunks
       const relevantChunks = await this.searchContent(question, 3);
       
+      console.log(`📊 Found ${relevantChunks.length} relevant chunks`);
+      if (relevantChunks.length > 0) {
+        console.log('Top chunk:', relevantChunks[0]);
+      }
+      
       if (relevantChunks.length === 0) {
+        console.log('❌ No relevant chunks found - database might be empty');
         return {
           answer: "I don't have enough information to answer your question. Please try ingesting some content first by adding URLs in the Content Ingestion tab.",
           sources: [],
@@ -495,23 +611,69 @@ export class VectorDatabase {
   // Database utility methods
   private async storeInTransaction(db: IDBDatabase, storeName: string, data: any): Promise<void> {
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-      const request = store.put(data);
-      
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      try {
+        const transaction = db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.put(data);
+        
+        request.onsuccess = () => {
+          // Wait for transaction to complete before resolving
+          transaction.oncomplete = () => resolve();
+        };
+        
+        request.onerror = () => {
+          reject(request.error);
+        };
+        
+        transaction.onerror = () => {
+          reject(transaction.error);
+        };
+        
+        // Handle transaction abort
+        transaction.onabort = () => {
+          reject(new Error('Transaction aborted'));
+        };
+        
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
   private async getAllFromStore(db: IDBDatabase, storeName: string): Promise<any[]> {
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.getAll();
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      try {
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          // Wait for transaction to complete before resolving
+          transaction.oncomplete = () => {
+            if (request.result && Array.isArray(request.result)) {
+              resolve(request.result);
+            } else {
+              resolve([]);
+            }
+          };
+        };
+        
+        request.onerror = () => {
+          reject(request.error);
+        };
+        
+        transaction.onerror = () => {
+          reject(transaction.error);
+        };
+        
+        // Handle transaction abort
+        transaction.onabort = () => {
+          reject(new Error('Transaction aborted'));
+        };
+        
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -630,20 +792,13 @@ export class VectorDatabase {
   private async getDatabaseSize(): Promise<number> {
     try {
       const db = await this.ensureDatabase();
-      const transaction = db.transaction(['content', 'chunks', 'queries', 'embeddings'], 'readonly');
-      
       let totalSize = 0;
       const stores = ['content', 'chunks', 'queries', 'embeddings'];
       
+      // Process each store sequentially to avoid race conditions
       for (const storeName of stores) {
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
-        
-        request.onsuccess = () => {
-          request.result.forEach(item => {
-            totalSize += JSON.stringify(item).length;
-          });
-        };
+        const storeSize = await this.getStoreSize(db, storeName);
+        totalSize += storeSize;
       }
       
       return totalSize;
@@ -651,6 +806,42 @@ export class VectorDatabase {
       console.error('Error calculating database size:', error);
       return 0;
     }
+  }
+
+  // Helper method to get size of a single store
+  private async getStoreSize(db: IDBDatabase, storeName: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          let size = 0;
+          if (request.result && Array.isArray(request.result)) {
+            request.result.forEach(item => {
+              size += JSON.stringify(item).length;
+            });
+          }
+          resolve(size);
+        };
+        
+        request.onerror = () => {
+          reject(request.error);
+        };
+        
+        transaction.oncomplete = () => {
+          // Transaction completed successfully
+        };
+        
+        transaction.onerror = () => {
+          reject(transaction.error);
+        };
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   // Clear all data
@@ -681,5 +872,127 @@ export class VectorDatabase {
       vectorDimensions: this.vectorDimensions,
       type: 'IndexedDB Vector Database'
     };
+  }
+
+  // Check database health and connectivity
+  async checkHealth(): Promise<{ healthy: boolean; issues: string[] }> {
+    const issues: string[] = [];
+    
+    try {
+      // Check if database is initialized
+      if (!this.db) {
+        issues.push('Database not initialized');
+        return { healthy: false, issues };
+      }
+      
+      // Check if database is open
+      if (this.db.readyState !== 'open') {
+        issues.push(`Database not ready (state: ${this.db.readyState})`);
+        return { healthy: false, issues };
+      }
+      
+      // Test basic operations
+      try {
+        const testTransaction = this.db.transaction(['content'], 'readonly');
+        const testStore = testTransaction.objectStore('content');
+        const testRequest = testStore.getAll();
+        
+        await new Promise<void>((resolve, reject) => {
+          testRequest.onsuccess = () => resolve();
+          testRequest.onerror = () => reject(testRequest.error);
+          testTransaction.onerror = () => reject(testTransaction.error);
+        });
+        
+      } catch (error) {
+        issues.push(`Database operations test failed: ${error}`);
+      }
+      
+      // Check object stores
+      const expectedStores = ['content', 'chunks', 'queries', 'embeddings'];
+      for (const storeName of expectedStores) {
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          issues.push(`Missing object store: ${storeName}`);
+        }
+      }
+      
+      return {
+        healthy: issues.length === 0,
+        issues
+      };
+      
+    } catch (error) {
+      issues.push(`Health check failed: ${error}`);
+      return { healthy: false, issues };
+    }
+  }
+
+  // Reset database if there are issues
+  async resetDatabase(): Promise<void> {
+    try {
+      console.log('🔄 Resetting vector database...');
+      
+      // Close existing connection
+      if (this.db) {
+        this.db.close();
+        this.db = null;
+      }
+      
+      // Delete the database
+      const deleteRequest = indexedDB.deleteDatabase(this.dbName);
+      
+      await new Promise<void>((resolve, reject) => {
+        deleteRequest.onsuccess = () => {
+          console.log('✅ Database deleted successfully');
+          resolve();
+        };
+        deleteRequest.onerror = () => {
+          reject(deleteRequest.error);
+        };
+      });
+      
+      // Reinitialize
+      await this.initializeDatabase();
+      console.log('✅ Database reset and reinitialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to reset database:', error);
+      throw error;
+    }
+  }
+
+  // Debug method to inspect database contents
+  async debugDatabaseContents(): Promise<void> {
+    try {
+      const db = await this.ensureDatabase();
+      
+      console.log('🔍 === DATABASE DEBUG INFO ===');
+      
+      // Check content store
+      const content = await this.getAllFromStore(db, 'content');
+      console.log(`📚 Content items: ${content.length}`);
+      content.forEach((item, index) => {
+        console.log(`  ${index + 1}. ${item.title} (${item.url})`);
+        console.log(`     Chunks: ${item.chunks?.length || 0}`);
+        console.log(`     Content preview: ${item.content.substring(0, 100)}...`);
+      });
+      
+      // Check chunks store
+      const chunks = await this.getAllFromStore(db, 'chunks');
+      console.log(`🧩 Chunks: ${chunks.length}`);
+      chunks.forEach((chunk, index) => {
+        console.log(`  ${index + 1}. ${chunk.title} - Chunk ${chunk.chunkIndex}`);
+        console.log(`     Content: ${chunk.content.substring(0, 100)}...`);
+        console.log(`     Embedding: ${chunk.embedding?.length || 0} dimensions`);
+      });
+      
+      // Check queries store
+      const queries = await this.getAllFromStore(db, 'queries');
+      console.log(`❓ Queries: ${queries.length}`);
+      
+      console.log('🔍 === END DEBUG INFO ===');
+      
+    } catch (error) {
+      console.error('Error debugging database:', error);
+    }
   }
 }
