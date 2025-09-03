@@ -5,11 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, X, Globe, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { ContentService, IngestionResult } from '@/lib/contentService';
 
 interface UrlStatus {
   url: string;
   status: 'pending' | 'processing' | 'success' | 'error';
   message?: string;
+  title?: string;
+  metadata?: any;
 }
 
 interface UrlIngestionProps {
@@ -71,27 +74,67 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
     setUrlStatuses(initialStatuses);
 
     try {
+      // Process each URL individually
+      const results: IngestionResult[] = [];
+      
+      for (let i = 0; i < validUrls.length; i++) {
+        const url = validUrls[i];
+        try {
+          const result = await ContentService.ingestUrl(url);
+          results.push(result);
+          
+          // Update status for this specific URL
+          setUrlStatuses(prev => prev.map((status, index) => 
+            status.url === url ? {
+              ...status,
+              status: result.success ? 'success' : 'error',
+              message: result.message,
+              title: result.title,
+              metadata: result.metadata
+            } : status
+          ));
+        } catch (error) {
+          results.push({
+            success: false,
+            url,
+            message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          });
+          
+          setUrlStatuses(prev => prev.map((status, index) => 
+            status.url === url ? {
+              ...status,
+              status: 'error',
+              message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+            } : status
+          ));
+        }
+      }
+
+      // Call the parent callback
       await onIngest(validUrls);
       
-      // Update all to success (in real implementation, this would be per-URL)
-      setUrlStatuses(prev => prev.map(status => ({
-        ...status,
-        status: 'success',
-        message: 'Successfully processed'
-      })));
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.length - successCount;
 
-      toast({
-        title: "URLs Ingested",
-        description: `Successfully processed ${validUrls.length} URL(s).`,
-      });
+      if (errorCount === 0) {
+        toast({
+          title: "URLs Ingested Successfully",
+          description: `Successfully processed ${successCount} URL(s).`,
+        });
+      } else if (successCount === 0) {
+        toast({
+          title: "Ingestion Failed",
+          description: "Failed to process all URLs. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `Processed ${successCount} URL(s) successfully, ${errorCount} failed.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      // Update all to error (in real implementation, this would be per-URL)
-      setUrlStatuses(prev => prev.map(status => ({
-        ...status,
-        status: 'error',
-        message: 'Failed to process'
-      })));
-
       toast({
         title: "Ingestion Failed",
         description: "Failed to process URLs. Please try again.",
@@ -214,11 +257,16 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
                   {getStatusIcon(status.status)}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
-                      {status.url}
+                      {status.title || status.url}
                     </p>
                     {status.message && (
                       <p className="text-xs text-muted-foreground">
                         {status.message}
+                      </p>
+                    )}
+                    {status.metadata && (
+                      <p className="text-xs text-voice-primary">
+                        {status.metadata.wordCount} words
                       </p>
                     )}
                   </div>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { UrlIngestion } from '@/components/UrlIngestion';
 import { QueryInterface } from '@/components/QueryInterface';
+import { ConfigChecker } from '@/components/ConfigChecker';
 import { useToast } from '@/components/ui/use-toast';
 import { Brain, Database, MessageSquare, Zap } from 'lucide-react';
 
@@ -13,25 +14,25 @@ const Index = () => {
   const [isIngested, setIsIngested] = useState(false);
   const { toast } = useToast();
 
-  // Mock functions - these would connect to your Supabase backend
+  // Real functions connected to Supabase backend
   const handleIngest = async (urls: string[]) => {
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // The actual ingestion is now handled by the UrlIngestion component
+    // This function is called after successful ingestion
     setIsIngested(true);
     setActiveTab('query');
+    
+    toast({
+      title: "Ready to Query!",
+      description: "Content has been ingested and is now available for questions.",
+    });
   };
 
   const handleQuery = async (question: string) => {
-    // Simulate query processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock response
+    // This function is no longer used as QueryInterface now handles queries directly
+    // But we keep it for compatibility
     return {
-      answer: "I don't have access to the ingested content yet. Please connect to Supabase to enable full functionality with OpenAI embeddings and vector search capabilities.",
-      sources: [
-        { url: "https://example.com", title: "Example Source", relevance: 0.95 },
-        { url: "https://docs.example.com", title: "Documentation", relevance: 0.87 }
-      ]
+      answer: "Please use the query interface below to ask questions.",
+      sources: []
     };
   };
 
@@ -95,26 +96,8 @@ const Index = () => {
           transition={{ delay: 0.6 }}
           className="max-w-4xl mx-auto"
         >
-          {/* Backend Integration Notice */}
-          <Card className="glass mb-8 border-voice-warning/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-2 bg-voice-warning rounded-full animate-pulse"></div>
-                <h3 className="text-lg font-semibold text-voice-warning">
-                  Backend Integration Required
-                </h3>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                To enable full functionality including URL content extraction, OpenAI embeddings, 
-                vector search, and query processing, connect to Supabase using the green button 
-                in the top right corner.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                The current interface shows the frontend design and voice features. 
-                Backend functionality will be implemented using Supabase Edge Functions.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Configuration Status */}
+          <ConfigChecker />
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">

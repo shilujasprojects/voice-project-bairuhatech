@@ -53,26 +53,33 @@ A production-ready voice-driven Q&A web application that allows users to ingest 
 
 To enable full functionality, connect to Supabase:
 
-1. **Click the green Supabase button** in the top-right corner of the Lovable interface
-2. **Connect your Supabase project** or create a new one
-3. **Add required secrets** in Supabase Edge Function Secrets:
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - (Optional) `PINECONE_API_KEY`: If using Pinecone instead of Supabase Vector
+### Quick Setup
 
-### Environment Variables (.env.example)
+1. **Create a `.env` file** in your project root with your API keys:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_OPENAI_API_KEY=your_openai_api_key
+   ```
+
+2. **Follow the complete setup guide**: [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+
+### What You'll Get
+
+- ✅ **Content Ingestion**: Extract and store web content with OpenAI embeddings
+- ✅ **Vector Search**: Semantic similarity search using Supabase Vector
+- ✅ **AI-Powered Q&A**: Intelligent answers based on ingested content
+- ✅ **Voice Interface**: Full voice input and output capabilities
+- ✅ **Real-time Processing**: Live status updates and progress tracking
+
+### Environment Variables
 ```env
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
 # OpenAI Configuration
-OPENAI_API_KEY=sk-your-openai-api-key-here
-
-# Vector Database (choose one)
-# Supabase Vector (recommended - auto-configured)
-SUPABASE_URL=your-supabase-url
-SUPABASE_ANON_KEY=your-supabase-anon-key
-
-# Alternative: Pinecone
-PINECONE_API_KEY=your-pinecone-api-key
-PINECONE_ENVIRONMENT=your-pinecone-environment
-PINECONE_INDEX_NAME=voice-qa-index
+VITE_OPENAI_API_KEY=your_openai_api_key
 ```
 
 ## 📋 Sample URLs for Testing
