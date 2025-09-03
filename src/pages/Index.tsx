@@ -127,7 +127,7 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="query" className="space-y-6">
-              <QueryInterface onQuery={handleQuery} />
+              <QueryInterface />
               
               <Card className="glass">
                 <CardContent className="pt-6">

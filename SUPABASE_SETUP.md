@@ -1,199 +1,160 @@
-# Supabase Setup Guide for Voice-Driven Q&A Assistant
+# Supabase Setup Guide for Voice Transfer Project
 
-This guide will help you set up Supabase to enable full functionality with OpenAI embeddings and vector search capabilities.
+This guide will help you set up Supabase with OpenAI embeddings and vector search capabilities for your voice transfer project.
 
 ## Prerequisites
 
 - A Supabase account (free tier available)
-- OpenAI API key
-- Node.js and npm/yarn installed
+- An OpenAI API key
+- Node.js and npm installed
 
 ## Step 1: Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and sign up/sign in
 2. Click "New Project"
-3. Choose your organization and enter a project name
-4. Set a database password (save this securely)
-5. Choose a region close to your users
-6. Wait for the project to be created
+3. Choose your organization
+4. Fill in project details:
+   - Name: `voice-transfer` (or your preferred name)
+   - Database Password: Choose a strong password
+   - Region: Select the region closest to your users
+5. Click "Create new project"
+6. Wait for the project to be created (this may take a few minutes)
 
 ## Step 2: Get Your Supabase Credentials
 
-1. In your project dashboard, go to Settings → API
+1. In your project dashboard, go to **Settings** → **API**
 2. Copy the following values:
-   - Project URL
-   - Anon (public) key
+   - **Project URL** (looks like: `https://xxxxxxxxxxxxx.supabase.co`)
+   - **anon public** key (starts with `eyJ...`)
 
 ## Step 3: Set Up Environment Variables
 
-1. Create a `.env` file in your project root
-2. Add the following variables:
+1. In your project root, create a `.env` file:
+   ```bash
+   # Copy the env.example file
+   cp env.example .env
+   ```
 
-```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_OPENAI_API_KEY=your_openai_api_key
-```
+2. Edit the `.env` file with your actual values:
+   ```env
+   VITE_SUPABASE_URL=https://your-project-id.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+   VITE_OPENAI_API_KEY=your-openai-api-key-here
+   ```
 
-3. Replace the placeholder values with your actual credentials
+## Step 4: Set Up the Database
 
-## Step 4: Enable Vector Extension
+1. In your Supabase dashboard, go to **SQL Editor**
+2. Create a new query
+3. Copy and paste the contents of `supabase-setup.sql`
+4. Click "Run" to execute the SQL
 
-1. In your Supabase dashboard, go to SQL Editor
-2. Run the following SQL command:
+This will:
+- Enable the `pgvector` extension for vector operations
+- Create the `content` table for storing ingested content
+- Create the `queries` table for storing query history
+- Set up vector similarity search functions
+- Create necessary indexes for performance
 
-```sql
--- Enable the vector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-```
+## Step 5: Get Your OpenAI API Key
 
-## Step 5: Create Database Tables
+1. Go to [platform.openai.com](https://platform.openai.com)
+2. Sign up or sign in
+3. Go to **API Keys**
+4. Click "Create new secret key"
+5. Copy the key and add it to your `.env` file
 
-Run the following SQL commands in the SQL Editor:
+## Step 6: Test the Setup
 
-```sql
--- Create documents table for storing content with embeddings
-CREATE TABLE documents (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  url TEXT NOT NULL,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  embedding vector(1536), -- OpenAI text-embedding-3-small dimension
-  metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+1. Start your development server:
+   ```bash
+   npm run dev
+   ```
 
--- Create queries table for storing Q&A history
-CREATE TABLE queries (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  question TEXT NOT NULL,
-  answer TEXT NOT NULL,
-  sources TEXT[] DEFAULT '{}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+2. Open your browser and navigate to the app
+3. The **Configuration Status** section should show:
+   - ✅ Supabase: Configured
+   - ✅ OpenAI: Configured
+   - ✅ Database: Configured
 
--- Create indexes for better performance
-CREATE INDEX ON documents USING GIN (metadata);
-CREATE INDEX ON documents (created_at);
-CREATE INDEX ON queries (created_at);
-```
+4. If all are green, you're ready to use the app!
 
-## Step 6: Create Vector Search Function
+## Step 7: Ingest Your First Content
 
-Run this SQL command to create the vector similarity search function:
+1. Go to the **Ingest Content** tab
+2. Add a URL (e.g., `https://en.wikipedia.org/wiki/Artificial_intelligence`)
+3. Click "Ingest Content"
+4. Wait for the processing to complete
 
-```sql
--- Function to match documents based on vector similarity
-CREATE OR REPLACE FUNCTION match_documents(
-  query_embedding vector(1536),
-  match_threshold float DEFAULT 0.7,
-  match_count int DEFAULT 5
-)
-RETURNS TABLE(
-  id UUID,
-  url TEXT,
-  title TEXT,
-  content TEXT,
-  similarity float
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    documents.id,
-    documents.url,
-    documents.title,
-    documents.content,
-    1 - (documents.embedding <=> query_embedding) AS similarity
-  FROM documents
-  WHERE 1 - (documents.embedding <=> query_embedding) > match_threshold
-  ORDER BY documents.embedding <=> query_embedding
-  LIMIT match_count;
-END;
-$$;
-```
+## Step 8: Ask Questions
 
-## Step 7: Set Up Row Level Security (Optional but Recommended)
-
-```sql
--- Enable RLS on tables
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE queries ENABLE ROW LEVEL SECURITY;
-
--- Create policies (adjust based on your needs)
-CREATE POLICY "Allow public read access to documents" ON documents
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert to documents" ON documents
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Allow public read access to queries" ON queries
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert to queries" ON queries
-  FOR INSERT WITH CHECK (true);
-```
-
-## Step 8: Test the Setup
-
-1. Start your development server: `npm run dev`
-2. Go to the Content Ingestion tab
-3. Try ingesting a URL (e.g., https://en.wikipedia.org/wiki/Artificial_intelligence)
-4. Check the Supabase dashboard → Table Editor → documents to see if the content was stored
-5. Go to the Ask Questions tab and try asking a question
+1. Go to the **Ask Questions** tab
+2. Type or speak your question
+3. Get AI-powered answers with cited sources!
 
 ## Troubleshooting
 
-### Common Issues:
+### Common Issues
 
-1. **"Missing Supabase environment variables"**
-   - Make sure your `.env` file is in the project root
-   - Restart your development server after adding environment variables
+**"Missing Supabase environment variables"**
+- Make sure your `.env` file exists and has the correct values
+- Restart your development server after making changes
 
-2. **"Vector extension not available"**
-   - Make sure you've enabled the vector extension in Step 4
+**"Database connection error"**
+- Verify your Supabase credentials are correct
+- Check that you've run the SQL setup script
+- Ensure your project is not paused (free tier projects pause after inactivity)
 
-3. **"Function match_documents does not exist"**
-   - Run the SQL command from Step 6 again
+**"OpenAI API error"**
+- Verify your OpenAI API key is correct
+- Check your OpenAI account has credits
+- Ensure you're using a valid model name
 
-4. **CORS errors when fetching URLs**
-   - The app uses a CORS proxy (allorigins.win). In production, consider using Supabase Edge Functions
+**"Vector search not working"**
+- Make sure the `pgvector` extension is enabled
+- Verify the `match_content` function was created successfully
+- Check that content has been ingested with embeddings
 
-5. **OpenAI API errors**
-   - Check your OpenAI API key
-   - Ensure you have sufficient credits in your OpenAI account
+### Database Schema
 
-### Performance Tips:
+The setup creates these main tables:
 
-1. **Content Length**: The system truncates content to 8000 characters to stay within OpenAI's token limits
-2. **Vector Search**: Adjust the `match_threshold` in the `match_documents` function for better results
-3. **Batch Processing**: For multiple URLs, the system processes them sequentially to avoid rate limiting
+- **`content`**: Stores ingested URLs with their content and embeddings
+- **`queries`**: Stores query history and results
+- **`match_content`**: Function for vector similarity search
 
-## Production Considerations
+### Performance Tips
 
-1. **Rate Limiting**: Implement rate limiting for both URL ingestion and queries
-2. **Content Validation**: Add validation for URLs and content before processing
-3. **Error Handling**: Implement more robust error handling and retry mechanisms
-4. **Monitoring**: Set up monitoring for API usage and costs
-5. **Backup**: Regular backups of your Supabase database
-6. **Edge Functions**: Consider using Supabase Edge Functions for URL content extraction to avoid CORS issues
+- Use the free tier for development and testing
+- Upgrade to a paid plan for production use
+- Consider implementing caching for frequently accessed content
+- Monitor your OpenAI API usage to control costs
 
 ## Security Notes
 
-1. **API Keys**: Never commit your `.env` file to version control
-2. **Row Level Security**: Consider implementing more restrictive RLS policies for production
-3. **Content Moderation**: Implement content filtering for user-submitted URLs
-4. **Rate Limiting**: Protect against abuse with proper rate limiting
+- Never commit your `.env` file to version control
+- The `anon` key is safe to use in the browser (it has limited permissions)
+- Consider using Row Level Security (RLS) for production applications
+- Monitor your API usage and set up alerts
+
+## Next Steps
+
+Once your setup is working:
+
+1. **Customize the UI**: Modify the components to match your brand
+2. **Add Authentication**: Implement user accounts and content ownership
+3. **Enhance Content Processing**: Add support for more file types
+4. **Implement Caching**: Add Redis or similar for better performance
+5. **Add Analytics**: Track usage patterns and popular content
 
 ## Support
 
 If you encounter issues:
-1. Check the browser console for error messages
-2. Verify your environment variables are correct
-3. Check the Supabase dashboard for any database errors
-4. Ensure all SQL commands were executed successfully
 
-Your voice-driven Q&A assistant should now be fully functional with Supabase integration!
+1. Check the [Supabase documentation](https://supabase.com/docs)
+2. Review the [OpenAI API documentation](https://platform.openai.com/docs)
+3. Check the project's GitHub issues
+4. Join the Supabase Discord community
+
+Happy building! 🚀
 

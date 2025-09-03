@@ -7,23 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, ExternalLink, Loader } from 'lucide-react';
 import { VoiceRecorder } from './VoiceRecorder';
 import { TextToSpeech } from './TextToSpeech';
-
-interface QueryResult {
-  answer: string;
-  sources: Array<{
-    url: string;
-    title?: string;
-    relevance?: number;
-  }>;
-}
+import { ContentService, QueryResult } from '@/lib/contentService';
 
 interface QueryInterfaceProps {
-  onQuery: (question: string) => Promise<QueryResult>;
   isLoading?: boolean;
 }
 
 export const QueryInterface: React.FC<QueryInterfaceProps> = ({ 
-  onQuery, 
   isLoading = false 
 }) => {
   const [question, setQuestion] = useState('');
@@ -36,7 +26,7 @@ export const QueryInterface: React.FC<QueryInterfaceProps> = ({
 
     setIsQuerying(true);
     try {
-      const queryResult = await onQuery(question.trim());
+      const queryResult = await ContentService.queryContent(question.trim());
       setResult(queryResult);
     } catch (error) {
       console.error('Query error:', error);
@@ -50,7 +40,7 @@ export const QueryInterface: React.FC<QueryInterfaceProps> = ({
     if (transcript.trim()) {
       setIsQuerying(true);
       try {
-        const queryResult = await onQuery(transcript.trim());
+        const queryResult = await ContentService.queryContent(transcript.trim());
         setResult(queryResult);
       } catch (error) {
         console.error('Voice query error:', error);

@@ -5,14 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, X, Globe, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { ContentService, IngestionResult } from '@/lib/contentService';
+import { ContentService, ContentItem } from '@/lib/contentService';
 
 interface UrlStatus {
   url: string;
   status: 'pending' | 'processing' | 'success' | 'error';
   message?: string;
   title?: string;
-  metadata?: any;
+  content?: string;
 }
 
 interface UrlIngestionProps {
@@ -75,7 +75,7 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
 
     try {
       // Process each URL individually
-      const results: IngestionResult[] = [];
+      const results: ContentItem[] = [];
       
       for (let i = 0; i < validUrls.length; i++) {
         const url = validUrls[i];
@@ -87,19 +87,13 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
           setUrlStatuses(prev => prev.map((status, index) => 
             status.url === url ? {
               ...status,
-              status: result.success ? 'success' : 'error',
-              message: result.message,
+              status: 'success',
+              message: 'Successfully ingested',
               title: result.title,
-              metadata: result.metadata
+              content: result.content
             } : status
           ));
         } catch (error) {
-          results.push({
-            success: false,
-            url,
-            message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          });
-          
           setUrlStatuses(prev => prev.map((status, index) => 
             status.url === url ? {
               ...status,
@@ -113,8 +107,8 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
       // Call the parent callback
       await onIngest(validUrls);
       
-      const successCount = results.filter(r => r.success).length;
-      const errorCount = results.length - successCount;
+      const successCount = results.length;
+      const errorCount = validUrls.length - successCount;
 
       if (errorCount === 0) {
         toast({
@@ -264,9 +258,9 @@ export const UrlIngestion: React.FC<UrlIngestionProps> = ({
                         {status.message}
                       </p>
                     )}
-                    {status.metadata && (
+                    {status.content && (
                       <p className="text-xs text-voice-primary">
-                        {status.metadata.wordCount} words
+                        {status.content.length} characters
                       </p>
                     )}
                   </div>
