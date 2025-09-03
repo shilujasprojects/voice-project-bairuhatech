@@ -8,7 +8,11 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "create-env": "node create-env.js",
+    "create-env:basic": "node create-env.js --type=basic",
+    "create-env:advanced": "node create-env.js --type=advanced",
+    "create-env:production": "node create-env.js --type=production"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -46,6 +50,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "faiss-node": "^0.5.1",
     "framer-motion": "^12.23.12",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",

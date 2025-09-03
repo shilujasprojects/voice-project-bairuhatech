@@ -11,14 +11,12 @@ import { Brain, Database, MessageSquare, Zap } from 'lucide-react';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('ingest');
-  const [isIngested, setIsIngested] = useState(false);
   const { toast } = useToast();
 
   // Real functions connected to Supabase backend
   const handleIngest = async (urls: string[]) => {
     // The actual ingestion is now handled by the UrlIngestion component
     // This function is called after successful ingestion
-    setIsIngested(true);
     setActiveTab('query');
     
     toast({
@@ -105,7 +103,7 @@ const Index = () => {
                 <Database className="w-4 h-4 mr-2" />
                 Ingest Content
               </TabsTrigger>
-              <TabsTrigger value="query" className="text-base" disabled={!isIngested}>
+              <TabsTrigger value="query" className="text-base">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Ask Questions
               </TabsTrigger>
@@ -121,6 +119,13 @@ const Index = () => {
                     <p>• https://en.wikipedia.org/wiki/Artificial_intelligence</p>
                     <p>• https://docs.python.org/3/tutorial/</p>
                     <p>• https://react.dev/learn</p>
+                  </div>
+                  <div className="mt-3 p-3 bg-secondary/30 rounded">
+                    <p className="text-xs font-medium text-voice-primary">💡 Pro Tip:</p>
+                    <p className="text-xs text-muted-foreground">
+                      These URLs will be processed using our intelligent content extraction system. 
+                      The app will automatically detect the content type and generate relevant responses.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

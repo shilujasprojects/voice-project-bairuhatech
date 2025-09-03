@@ -1,204 +1,197 @@
-# Voice-Driven Q&A Web Application
+# Voice-Driven Q&A Assistant
 
-A production-ready voice-driven Q&A web application that allows users to ingest content from websites and ask questions using speech recognition. Built with React, TypeScript, and designed to integrate with Supabase for backend functionality.
+A React application that allows you to ingest content from URLs and ask questions using voice or text, with AI-powered answers based on the ingested content.
 
-## ✨ Features
+## Features
 
-### Frontend (Implemented)
-- 🎤 **Voice Recording**: Web Speech API integration with visual feedback
-- 🔊 **Text-to-Speech**: Automatic audio responses using Speech Synthesis API
-- 📱 **Responsive Design**: Beautiful, modern UI with glassmorphism effects
-- ⚡ **Real-time Animations**: Smooth transitions with Framer Motion
-- 🌐 **URL Ingestion Interface**: Multi-URL input with validation and status tracking
-- 💬 **Query Interface**: Voice and text input with intelligent responses
-- 🎨 **Design System**: Consistent theming with semantic color tokens
+- **URL Content Ingestion**: Extract and store content from web pages
+- **AI-Powered Q&A**: Ask questions and get intelligent answers based on ingested content
+- **Voice Interface**: Ask questions using speech recognition
+- **Text-to-Speech**: Listen to answers with natural speech synthesis
+- **Vector Search**: Use embeddings for semantic content search
+- **Real-time Processing**: Instant content processing and query responses
 
-### Backend (Requires Supabase Integration)
-- 📊 **Content Ingestion**: Extract readable text from URLs using `@mozilla/readability`
-- 🧠 **AI Embeddings**: OpenAI text-embedding-3-small integration
-- 🔍 **Vector Search**: Similarity search using Supabase Vector/pgvector
-- 🤖 **Query Processing**: OpenAI ChatCompletion with context injection
-- 🔐 **Secure API Management**: Environment variables for API keys
+## Current Status
 
-## 🚀 Quick Start
+Your application is currently running with **Mock Services** because the real backend (Supabase + OpenAI) is not configured. This means:
 
-### Prerequisites
-- Node.js 18+ and npm
-- Modern browser with Web Speech API support
+✅ **What's Working (Mock Mode):**
+- URL content ingestion (simulated)
+- AI-powered Q&A (simulated responses)
+- Voice input and text-to-speech
+- Content search and retrieval
+- Full UI functionality
 
-### Installation
+❌ **What's Missing (Real Backend):**
+- Real content extraction from URLs
+- OpenAI GPT responses
+- Supabase database storage
+- Vector embeddings and similarity search
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd voice-qa-app
-   ```
+## Quick Setup (To Enable Real Backend)
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### 1. Create Environment File
 
-3. **Start development server**
-   ```bash
-   npm run dev
-   ```
+Click the **"Download .env.local Template"** button in the Configuration Status section, or manually create a `.env.local` file in your project root:
 
-4. **Open in browser**
-   ```
-   http://localhost:8080
-   ```
-
-## 🔧 Backend Setup (Supabase Integration)
-
-To enable full functionality, connect to Supabase:
-
-### Quick Setup
-
-1. **Create a `.env` file** in your project root with your API keys:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_OPENAI_API_KEY=your_openai_api_key
-   ```
-
-2. **Follow the complete setup guide**: [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
-
-### What You'll Get
-
-- ✅ **Content Ingestion**: Extract and store web content with OpenAI embeddings
-- ✅ **Vector Search**: Semantic similarity search using Supabase Vector
-- ✅ **AI-Powered Q&A**: Intelligent answers based on ingested content
-- ✅ **Voice Interface**: Full voice input and output capabilities
-- ✅ **Real-time Processing**: Live status updates and progress tracking
-
-### Environment Variables
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_URL=your_supabase_project_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # OpenAI Configuration
-VITE_OPENAI_API_KEY=your_openai_api_key
+VITE_OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-## 📋 Sample URLs for Testing
+### 2. Get Supabase Credentials
 
-Try these URLs for content ingestion:
+1. Go to [Supabase](https://supabase.com) and create a new project
+2. In your project dashboard, go to **Settings** → **API**
+3. Copy the **Project URL** and **anon public** key
+4. Paste them in your `.env.local` file
 
-- **AI Documentation**: `https://en.wikipedia.org/wiki/Artificial_intelligence`
-- **Programming Guide**: `https://docs.python.org/3/tutorial/`
-- **React Documentation**: `https://react.dev/learn`
-- **Web Development**: `https://developer.mozilla.org/en-US/docs/Web/HTML`
+### 3. Set Up Database Schema
 
-## 🎯 Sample Questions
+1. In Supabase dashboard, go to **SQL Editor**
+2. Run the SQL script from `supabase-setup.sql` file
+3. This creates the necessary tables and vector search functions
 
-After ingesting content, try these voice or text queries:
+### 4. Get OpenAI API Key
 
-- "What is artificial intelligence?"
-- "How do I get started with React?"
-- "Explain Python functions with examples"
-- "What are the benefits of machine learning?"
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new API key
+3. Add it to your `.env.local` file
 
-## 🏗️ Architecture
+### 5. Restart Development Server
 
-### Frontend Stack
-- **React 18**: Modern React with hooks and functional components
-- **TypeScript**: Type-safe development
-- **Vite**: Fast development and build tool
-- **Tailwind CSS**: Utility-first styling with custom design system
-- **Framer Motion**: Smooth animations and transitions
-- **Shadcn/ui**: High-quality UI components
-- **Web Speech API**: Native browser speech recognition
-- **Speech Synthesis API**: Text-to-speech functionality
-
-### Backend Architecture (Supabase)
-```
-[Frontend] → [Supabase Edge Functions] → [OpenAI API]
-                     ↓
-              [Supabase Vector DB]
-```
-
-## 🧪 Testing
-
-### Acceptance Checklist
-
-#### Frontend Features ✅
-- [x] Voice recording with visual feedback
-- [x] Text-to-speech with audio controls
-- [x] URL ingestion interface with validation
-- [x] Query interface with voice and text input
-- [x] Responsive design on mobile and desktop
-- [x] Error handling and user feedback
-- [x] Loading states and animations
-
-#### Backend Integration (Requires Supabase)
-- [ ] URL content extraction and processing
-- [ ] OpenAI embedding generation
-- [ ] Vector database storage and retrieval
-- [ ] Similarity search functionality
-- [ ] ChatCompletion with context injection
-- [ ] Source citation in responses
-
-### Manual Testing
-
-1. **Content Ingestion**:
-   - Add 3+ URLs in the ingestion interface
-   - Verify validation for invalid URLs
-   - Check processing status indicators
-
-2. **Voice Interface**:
-   - Click microphone button and speak a question
-   - Verify speech recognition accuracy
-   - Test text-to-speech playback
-
-3. **Query Processing**:
-   - Submit questions via voice and text
-   - Verify response formatting
-   - Check source citations
-
-## 🎨 Design System
-
-The application uses a carefully crafted design system with:
-
-- **Color Palette**: Deep blues to purples with voice-specific accent colors
-- **Typography**: Inter font family with consistent sizing
-- **Animations**: Smooth transitions and micro-interactions
-- **Glassmorphism**: Modern glass-effect UI elements
-- **Voice Indicators**: Pulsing animations and wave effects
-
-## 🚀 Deployment
-
-### Using Lovable (Recommended)
-1. Open your [Lovable Project](https://lovable.dev)
-2. Click **Share → Publish**
-3. Your app will be deployed automatically
-
-### Manual Deployment
 ```bash
-npm run build
-# Deploy the 'dist' folder to your hosting service
+npm run dev
 ```
 
-## 🔒 Security Notes
+## Complete Workflow
 
-- API keys are managed through Supabase Edge Function Secrets
-- No sensitive data is stored in the frontend code
-- All API communications are server-side only
-- CORS and authentication handled by Supabase
+### 1. Content Ingestion
+- Navigate to the **"Ingest Content"** tab
+- Enter URLs (e.g., Wikipedia articles, documentation)
+- Click **"Ingest URLs"** to process and store content
+- Content is extracted, embedded, and stored in the database
 
-## 📚 Documentation Links
+### 2. Asking Questions
+- Switch to the **"Ask Questions"** tab
+- Type your question or use the voice recorder
+- Questions are processed using:
+  - Vector similarity search to find relevant content
+  - AI generation to create contextual answers
+  - Source citation with relevance scores
 
-- [Supabase Integration Guide](https://docs.lovable.dev/integrations/supabase/)
-- [Web Speech API Documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
-- [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
-- [Framer Motion Documentation](https://www.framer.com/motion/)
+### 3. Voice Interface
+- **Voice Input**: Click the microphone button and speak your question
+- **Text-to-Speech**: Click the speaker button to hear answers
+- **Real-time Processing**: Instant voice recognition and response
 
-## 🤝 Contributing
+## Technical Architecture
+
+```
+Frontend (React + TypeScript)
+    ↓
+ContentService (API Layer)
+    ↓
+┌─────────────────┬─────────────────┐
+│   Real Services │  Mock Services  │
+│                 │                 │
+│ Supabase        │ Local Storage   │
+│ OpenAI GPT      │ Simulated AI    │
+│ pgvector        │ Keyword Search  │
+│ URL Extraction  │ Mock Content    │
+└─────────────────┴─────────────────┘
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Mock Services Active" Message**
+   - This is normal when no `.env.local` file exists
+   - Create the environment file with your credentials
+
+2. **"Configuration Missing" Errors**
+   - Check that your `.env.local` file is in the project root
+   - Verify all required environment variables are set
+   - Restart the development server after changes
+
+3. **Voice Recognition Not Working**
+   - Ensure microphone permissions are granted
+   - Check browser compatibility (Chrome/Edge recommended)
+   - Verify HTTPS connection (required for microphone access)
+
+4. **Content Ingestion Fails**
+   - Check Supabase connection and database schema
+   - Verify OpenAI API key is valid
+   - Check browser console for detailed error messages
+
+### Debug Mode
+
+The application includes comprehensive logging. Check the browser console to see:
+- Service connection attempts
+- API call results
+- Fallback to mock services
+- Error details and resolutions
+
+## Development
+
+### Running the App
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Type checking
+npx tsc --noEmit
+```
+
+### Project Structure
+
+```
+src/
+├── components/          # UI components
+│   ├── UrlIngestion.tsx    # URL processing interface
+│   ├── QueryInterface.tsx  # Q&A interface
+│   ├── VoiceRecorder.tsx   # Speech recognition
+│   ├── TextToSpeech.tsx    # Speech synthesis
+│   └── ConfigChecker.tsx   # Service status
+├── lib/                # Core services
+│   ├── contentService.ts   # Main business logic
+│   ├── supabase.ts         # Database client
+│   ├── openai.ts           # AI service
+│   ├── mockLLMService.ts   # Development mock
+│   └── mockDatabaseService.ts # Development mock
+└── pages/              # Application pages
+    └── Index.tsx           # Main application
+```
+
+## API Endpoints
+
+When using real services, the application connects to:
+
+- **Supabase**: PostgreSQL database with pgvector extension
+- **OpenAI**: GPT models for content generation and embeddings
+- **Vector Search**: Semantic similarity search using embeddings
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Test thoroughly
 5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
 

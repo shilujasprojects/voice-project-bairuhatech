@@ -3,11 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file.')
-}
+// Check if we have valid environment variables
+const hasValidConfig = supabaseUrl && supabaseAnonKey && 
+  supabaseUrl.startsWith('https://') && 
+  supabaseAnonKey.length > 0
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Only create the client if we have valid configuration
+export const supabase = hasValidConfig 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null
+
+// Helper function to check if Supabase is available
+export const isSupabaseAvailable = () => !!supabase
 
 // Database types for our content and embeddings
 export interface ContentItem {
